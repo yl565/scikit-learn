@@ -10,6 +10,7 @@ estimator, as a chain of transforms and estimators.
 # License: BSD
 
 from collections import defaultdict
+
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
