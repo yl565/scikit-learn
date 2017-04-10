@@ -2,7 +2,7 @@
 
 import numpy as np
 from sklearn.utils.testing import assert_almost_equal, assert_array_equal
-from sklearn.utils.testing import assert_equal, assert_true
+from sklearn.utils.testing import assert_equal, assert_true, assert_false
 from sklearn.utils.testing import assert_raise_message
 from sklearn.exceptions import NotFittedError
 from sklearn.linear_model import LogisticRegression
@@ -301,14 +301,21 @@ def test_set_params():
     eclf2 = VotingClassifier([('lr', clf1), ('nb', clf3)], voting='soft',
                              weights=[1, 2])
     eclf2.set_params(nb=clf2).fit(X, y)
+    assert_false(hasattr(eclf2, 'nb'))
+
     assert_array_equal(eclf1.predict(X), eclf2.predict(X))
     assert_array_equal(eclf1.predict_proba(X), eclf2.predict_proba(X))
+    assert_equal(eclf2.estimators[0][1].get_params(), clf1.get_params())
+    assert_equal(eclf2.estimators[1][1].get_params(), clf2.get_params())
 
     eclf1.set_params(lr__C=10.0)
     eclf2.set_params(nb__max_depth=5)
 
     assert_true(eclf1.estimators[0][1].get_params()['C'] == 10.0)
     assert_true(eclf2.estimators[1][1].get_params()['max_depth'] == 5)
+    assert_equal(eclf1.get_params()["lr__C"],
+                 eclf1.get_params()["lr"].get_params()['C'])
+
 
 
 def test_set_estimator_none():
@@ -348,3 +355,25 @@ def test_set_estimator_none():
     assert_array_equal(eclf1.transform(X1), np.array([[[0.7, 0.3], [0.3, 0.7]],
                                                       [[1., 0.], [0., 1.]]]))
     assert_array_equal(eclf2.transform(X1), np.array([[[1., 0.], [0., 1.]]]))
+    eclf1.set_params(voting='hard')
+    eclf2.set_params(voting='hard')
+    assert_array_equal(eclf1.transform(X1), np.array([[0, 0], [1, 1]]))
+    assert_array_equal(eclf2.transform(X1), np.array([[0], [1]]))
+
+
+def test_estimator_weights_format():
+    # Test estimator weights inputs as list and array
+    clf1 = LogisticRegression(random_state=123)
+    clf2 = RandomForestClassifier(random_state=123)
+    eclf1 = VotingClassifier(estimators=[
+                ('lr', clf1), ('rf', clf2)],
+                weights=[1, 2],
+                voting='soft')
+    eclf2 = VotingClassifier(estimators=[
+                ('lr', clf1), ('rf', clf2)],
+                weights=np.array((1, 2)),
+                voting='soft')
+    eclf1.fit(X, y)
+    eclf2.fit(X, y)
+    assert_array_equal(eclf1.predict_proba(X), eclf2.predict_proba(X))
+
